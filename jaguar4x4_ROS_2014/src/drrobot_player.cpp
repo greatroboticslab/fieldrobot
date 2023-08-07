@@ -83,6 +83,14 @@ Publishes to (name / type):
 #include <std_msgs/Float64.h>
 #include <std_msgs/String.h>
 #include <sstream>
+
+// Preprocessor directories for recording and writing GPS data to "GPSRecord.txt" below
+#include <cassert> // While not technically needed, preferred over assert.h
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+// End of preprocessor directories
+
 #include <jaguar4x4_2014/MotorData.h>
 #include <jaguar4x4_2014/MotorDataArray.h>
 #include <jaguar4x4_2014/MotorBoardInfoArray.h>
@@ -94,6 +102,7 @@ Publishes to (name / type):
 
 #define MOTOR_NUM           4       //max
 #define MOTOR_BOARD_NUM     2       //max
+
 using namespace std;
 using namespace DrRobot_MotionSensorDriver;
 
@@ -108,7 +117,8 @@ public:
     ros::Publisher motorBoardInfo_pub_;
     ros::Publisher gps_pub_;
     ros::Publisher imu_pub_;
-    ros::Subscriber motor_cmd_sub_;	
+    ros::Subscriber motor_cmd_sub_;
+    ros::Subscriber rep_cmnd;
     std::string robot_prefix_;
 
     DrRobotPlayerNode()
@@ -228,7 +238,8 @@ public:
       {
 
       }
-
+      
+      rep_cmnd = node_.subscribe<std_msgs::String>("drrobot_motor_cmd", 1, boost::bind(&DrRobotPlayerNode::cmdReceived, this, _1));
       motor_cmd_sub_ = node_.subscribe<std_msgs::String>("drrobot_motor_cmd", 1, boost::bind(&DrRobotPlayerNode::cmdReceived, this, _1));
         return(0);
     }
@@ -249,6 +260,10 @@ public:
 	int nLen = strlen(cmd_data->data.c_str());
 //	 ROS_INFO("Received motor command len: [%d]", nLen);
         drrobotMotionDriver_->sendCommand(cmd_data->data.c_str(),nLen);
+        
+        curCmnd = cmd_data->data;
+        updated = true;
+        cout << curCmnd << endl;
       
     }
 
@@ -331,7 +346,8 @@ public:
 	  //    ROS_INFO("SeqNum [%d]",  imuData.seq );
           //    ROS_INFO("publish IMU sensor data");
               imu_pub_.publish(imuData);
-
+              
+              
               jaguar4x4_2014::GPSInfo gpsInfo;
               gpsInfo.header.stamp = ros::Time::now();
               gpsInfo.header.frame_id = string("drrobot_gps_");
@@ -344,6 +360,36 @@ public:
               gpsInfo.longitude = gpsSensorData_.longitude;
               gpsInfo.vog = gpsSensorData_.vog;
               gpsInfo.cog = gpsSensorData_.cog;
+              
+              
+              // - Kevin Kongmanychanh STR
+              	
+              	jaguarRecord.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/jaguarRecord.dat", ios::app);
+              	commands.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/commands.dat", ios::app);
+              	
+              	assert(jaguarRecord);
+              	assert(commands);
+              	
+              	if (curCmnd != "" && updated){
+              		jaguarRecord << curCmnd << ",";
+              		commands << sec << "|" << curCmnd << endl;
+              		sec++;
+              		updated = false;
+              	} else {
+              		jaguarRecord << "No current command,";
+              		commands << sec << "|" << "NO_CHANGE" << endl;
+              		sec++;
+              	}
+              	
+              	jaguarRecord << fixed << setprecision(13); // This is set to 13 decimal points of precision, after the decimal point, to keep the GPS data accurate.
+              	jaguarRecord << imuSensorData_.yaw << "," << gpsSensorData_.latitude << "," << gpsSensorData_.longitude << ",";
+              	jaguarRecord << 0 << endl; // This line is simply for the altitude, which the robot does not record, but is required for the GUI program.
+              	
+              	// Closing the file
+              	jaguarRecord.close();
+              	commands.close();
+              // - Kevin Kongmanychanh END
+
 
             //  ROS_INFO("publish GPS Info");
               gps_pub_.publish(gpsInfo);
@@ -380,6 +426,15 @@ private:
     double maxSpeed_;
 
     int cntNum_;
+    
+    // - Kevin Kongmanychanh STR
+    fstream jaguarRecord;
+    fstream commands;
+    string curCmnd;
+    int sec = 0;
+    bool updated = false;
+    // - Kevin Kongmanychanh END
+    
 
 };
 
@@ -398,12 +453,11 @@ int main(int argc, char** argv)
     }
     /////////////////////////////////////////////////////////////////
 
-    ros::Rate loop_rate(50);      //10Hz
+    ros::Rate loop_rate(50);      //50Hz
 
     while (n.ok())
     {
       drrobotPlayer.doUpdate();
-      
       ros::spinOnce();
      loop_rate.sleep();
     }

@@ -298,7 +298,7 @@ void DrRobot_MotionSensorDriver::DrRobotMotionSensorDriver::commWorkingThread(){
         else
         {
           _comCnt++;
-          usleep(2000);              //ms
+          usleep(20);              //ms (Kevin Kongmanychanh) This was originally 2000 ms
           if (_comCnt > COMM_LOST_TH)
           {
             printf("Communication is lost, need close all. IP address %s, Port: %d \n", _robotConfig->robotIP, _robotConfig->portNum);

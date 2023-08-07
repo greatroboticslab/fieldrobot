@@ -50,7 +50,7 @@
 #include <boost/shared_ptr.hpp>
 #include <poll.h>
 
-#define COMM_LOST_TH	200
+#define COMM_LOST_TH	20000
 #define KNNOT2MS   	0.5144444
 #define FULLAD    	4095
 //! A namespace containing the DrRobot Motion/Sensor driver
