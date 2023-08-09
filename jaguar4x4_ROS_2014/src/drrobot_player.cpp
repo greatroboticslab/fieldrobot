@@ -239,7 +239,7 @@ public:
 
       }
       
-      rep_cmnd = node_.subscribe<std_msgs::String>("drrobot_motor_cmd", 1, boost::bind(&DrRobotPlayerNode::cmdReceived, this, _1));
+      rep_cmnd = node_.subscribe<std_msgs::String>("rep_cmnd", 1, boost::bind(&DrRobotPlayerNode::cmdReceived, this, _1));
       motor_cmd_sub_ = node_.subscribe<std_msgs::String>("drrobot_motor_cmd", 1, boost::bind(&DrRobotPlayerNode::cmdReceived, this, _1));
         return(0);
     }

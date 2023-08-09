@@ -88,6 +88,9 @@ include_directories(include
  target_link_libraries(drrobot_keyboard_teleop_node
    ${catkin_LIBRARIES}
  )
+  target_link_libraries(replay_node
+   ${catkin_LIBRARIES}
+ )
 #############
 ## Install ##
 #############

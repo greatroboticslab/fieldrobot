@@ -118,7 +118,7 @@ bool done;
 
 int main(int argc, char** argv)
 {
-    ros::init(argc,argv,"drrobot_teleope_keyboard", ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
+    ros::init(argc,argv,"drrobot_teleop_keyboard", ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
     DrRobotKeyboardTeleopNode tbk;
 
     boost::thread t = boost::thread(boost::bind(&DrRobotKeyboardTeleopNode::keyboardLoop, &tbk));
