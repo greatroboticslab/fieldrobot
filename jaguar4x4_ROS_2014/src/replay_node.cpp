@@ -33,6 +33,8 @@ class ReplayNode{
 		// Destructor for ReplayNode class.
 		~ReplayNode(){}
 		
+		bool subReady();
+		
 		/* This function is defined outside of the class
 		   instead of inline. Refer below for specific 
 		   documentation.
@@ -62,16 +64,24 @@ class ReplayNode{
 		   be put into cmnd_input (and subsequently put into 
 		   commands.data) to be published. */
 		std::string buffer = "";
+		std::string prevBuf = buffer;
 		
-		// These two are self explanatory.
-		int curLine = 0; // Current line in the file.
-		int lnInFl = 0; // (Lines In File) Total lines in file.
+		int curPos = 0;
+		int posBuf = 0;
+		
+		bool endFile = false;
 		
 		/* This is the fstream object that will be used to open 
 		   the file for processing. */
 		std::fstream cmnd_file;
 };
 
+
+bool ReplayNode::subReady(){
+	if (pb.getNumSubscribers() < 1){
+		return false;
+	} else { return true; }
+}
 
 /* This function handles all the file reading and processing for the 
    file that contains commands intended to be read to the Jaguar robot. 
@@ -88,24 +98,16 @@ void ReplayNode::replay_file(){
 	Once the file is open, performing assertion; if you get an 
 	error while trying to run or compile this, this is why, as 
 	you likely have an incorrect path or one that does not exist. */
-	cmnd_file.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/commandRead.dat", std::ios::in);
-	assert(cmnd_file);
-	
-	/* This while loop records the number of lines in the file, 
-	   recorded to the lnInFl variable. */
-	while(getline(cmnd_file, buffer)){
-		lnInFl++;
-	}
-	
-	/* Setting the current position in the file back to the 
-	   beginning to perform file processing. */
-	cmnd_file.clear();
-	cmnd_file.seekg(0, std::ios::beg);
-	
-	// While the EOF has not been reached...
-	for(int pos = 0; pos < lnInFl; pos++){
-		/* Ignore the position indicator at the start of each 
-		   line, then read in the command to buffer. */
+
+	if ( (pb.getNumSubscribers() >= 1) && !endFile ){
+		cmnd_file.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/commandRead.dat", std::ios::in);
+		assert(cmnd_file);
+		
+		while ( (posBuf != curPos) && !cmnd_file.eof() ){
+			cmnd_file.ignore(100, '\n');
+			posBuf++;
+		}
+		
 		cmnd_file.ignore(100, '|');
 		getline(cmnd_file, buffer);
 		
@@ -115,7 +117,8 @@ void ReplayNode::replay_file(){
 		   what was just in cmnd_input, then clear cmnd_input. 
 		   Once this is completed, publish the commands to the 
 		   topic to be read by the jaguar4x4_2014_node node. */
-		if(buffer != "NO_CHANGE"){
+		if (buffer != "NO_CHANGE"){
+			prevBuf = buffer;
 			cmnd_input << buffer;
 			
 			commands.data = cmnd_input.str();
@@ -126,9 +129,13 @@ void ReplayNode::replay_file(){
 		}
 		
 		buffer.clear(); // Clearing buffer.
+		
+		cmnd_file.close(); // Closing the file once processing is done. 
+		if (!cmnd_file.eof()){
+			posBuf = 0;
+			curPos++;
+		} else { endFile = true; }
 	}
-	
-	cmnd_file.close(); // Closing the file once processing is done. 
 }
 
 
@@ -141,16 +148,26 @@ int main(int argc, char** argv){
 	   data */
 	ReplayNode replayer;
 	
-	/* Initializing a thread object (rep_thread), then calling the 
-	replay_file() function on the replayer object through it. */
-	boost::thread rep_thread = boost::thread(boost::bind(&ReplayNode::replay_file, &replayer));
+	// Loop until the jaguar4x4_2014_node node responds
+	while(!replayer.subReady());
 	
-	// Spinning the node (running in loop to publish new data)
-	ros::spin();
+	ros::Rate loopRate(50);
 	
-	// Asking rep_thread to stop, wait for it to finish running first.
-	rep_thread.interrupt();
-	rep_thread.join();
+	while(replayer.subReady()){
+		/* Initializing a thread object (rep_thread), then calling 
+		   the replay_file() function on the replayer object 
+		   through it. */
+		boost::thread rep_thread(boost::bind(&ReplayNode::replay_file, &replayer));
+		
+		// Spinning the node once
+		ros::spinOnce();
+		
+		// Asking rep_thread to stop, wait for it to finish running first.
+		rep_thread.interrupt();
+		rep_thread.join();
+		
+		loopRate.sleep();
+	}
 	
 	return(0); // Confirming successful program execution. 
 }
