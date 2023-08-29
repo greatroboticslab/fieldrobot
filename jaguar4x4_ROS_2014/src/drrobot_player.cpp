@@ -89,6 +89,8 @@ Publishes to (name / type):
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <chrono>
+#include <ctime>
 // End of preprocessor directories
 
 #include <jaguar4x4_2014/MotorData.h>
@@ -370,14 +372,17 @@ public:
               	assert(jaguarRecord);
               	assert(commands);
               	
+              	time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now());
+              	timeT = std::chrono::high_resolution_clock::to_time_t(time);
+              	
               	if (curCmnd != "" && updated){
               		jaguarRecord << curCmnd << ",";
-              		commands << sec << "|" << curCmnd << endl;
+              		commands << timeT << "," << sec << "|" << curCmnd << endl;
               		sec++;
               		updated = false;
               	} else {
               		jaguarRecord << "No current command,";
-              		commands << sec << "|" << "NO_CHANGE" << endl;
+              		commands << timeT << "," << sec << "|" << "NO_CHANGE" << endl;
               		sec++;
               	}
               	
@@ -432,6 +437,8 @@ private:
     fstream commands;
     string curCmnd;
     int sec = 0;
+    std::chrono::time_point<chrono::high_resolution_clock, std::chrono::milliseconds> time;
+    std::time_t timeT;
     bool updated = false;
     // - Kevin Kongmanychanh END
     
@@ -453,7 +460,7 @@ int main(int argc, char** argv)
     }
     /////////////////////////////////////////////////////////////////
 
-    ros::Rate loop_rate(50);      //50Hz
+    ros::Rate loop_rate(50);      //50Hz 
 
     while (n.ok())
     {
