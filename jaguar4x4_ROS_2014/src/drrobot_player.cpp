@@ -374,15 +374,16 @@ public:
               	
               	time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now());
               	timeT = std::chrono::high_resolution_clock::to_time_t(time);
+              	tse = tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
               	
               	if (curCmnd != "" && updated){
               		jaguarRecord << curCmnd << ",";
-              		commands << timeT << "," << sec << "|" << curCmnd << endl;
+              		commands << tse.count() << "," << sec << "|" << curCmnd << endl;
               		sec++;
               		updated = false;
               	} else {
               		jaguarRecord << "No current command,";
-              		commands << timeT << "," << sec << "|" << "NO_CHANGE" << endl;
+              		commands << tse.count() << "," << sec << "|" << "NO_CHANGE" << endl;
               		sec++;
               	}
               	
@@ -439,13 +440,20 @@ private:
     int sec = 0;
     std::chrono::time_point<chrono::high_resolution_clock, std::chrono::milliseconds> time;
     std::time_t timeT;
+    std::chrono::milliseconds tse;
+    int msEpoch;
+    int secEpoch;
+    int minEpoch;
+    int hrEpoch;
     bool updated = false;
     // - Kevin Kongmanychanh END
     
 
 };
 
-
+string timeStamp(std::chrono::milliseconds timeSinceEpoch){
+	return "Not finished yet.";
+}
 
 int main(int argc, char** argv)
 {
