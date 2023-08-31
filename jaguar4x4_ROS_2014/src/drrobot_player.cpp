@@ -91,6 +91,7 @@ Publishes to (name / type):
 #include <iomanip>
 #include <chrono>
 #include <ctime>
+#include <string>
 // End of preprocessor directories
 
 #include <jaguar4x4_2014/MotorData.h>
@@ -107,6 +108,8 @@ Publishes to (name / type):
 
 using namespace std;
 using namespace DrRobot_MotionSensorDriver;
+
+std::string timeConverter(std::chrono::milliseconds timeSinceEpoch);
 
 class DrRobotPlayerNode
 {
@@ -372,18 +375,16 @@ public:
               	assert(jaguarRecord);
               	assert(commands);
               	
-              	time = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now());
-              	timeT = std::chrono::high_resolution_clock::to_time_t(time);
-              	tse = tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+              	tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
               	
               	if (curCmnd != "" && updated){
               		jaguarRecord << curCmnd << ",";
-              		commands << tse.count() << "," << sec << "|" << curCmnd << endl;
+              		commands << timeConverter(tse) << "," << sec << "|" << curCmnd << endl;
               		sec++;
               		updated = false;
               	} else {
               		jaguarRecord << "No current command,";
-              		commands << tse.count() << "," << sec << "|" << "NO_CHANGE" << endl;
+              		commands << timeConverter(tse) << "," << sec << "|" << "NO_CHANGE" << endl;
               		sec++;
               	}
               	
@@ -438,8 +439,6 @@ private:
     fstream commands;
     string curCmnd;
     int sec = 0;
-    std::chrono::time_point<chrono::high_resolution_clock, std::chrono::milliseconds> time;
-    std::time_t timeT;
     std::chrono::milliseconds tse;
     int msEpoch;
     int secEpoch;
@@ -451,8 +450,15 @@ private:
 
 };
 
-string timeStamp(std::chrono::milliseconds timeSinceEpoch){
-	return "Not finished yet.";
+std::string timeConverter(std::chrono::milliseconds timeSinceEpoch){	
+    	int msEpoch = timeSinceEpoch.count() % 1000;
+    	int secEpoch = (timeSinceEpoch.count() / 1000) % 60;
+    	int minEpoch = (timeSinceEpoch.count() / 60000 ) % 60;
+    	int hrEpoch = (timeSinceEpoch.count() / 86400000) % 24;
+    	
+    	std::string timestamp = std::to_string(hrEpoch) + ":" + std::to_string(minEpoch) + ":" + std::to_string(secEpoch) + ":" + std::to_string(msEpoch);
+    	
+	return timestamp;
 }
 
 int main(int argc, char** argv)
