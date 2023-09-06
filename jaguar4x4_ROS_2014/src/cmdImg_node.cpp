@@ -32,9 +32,11 @@ public:
 	
 	void jagCmnd_cb(const std_msgs::String::ConstPtr& cmnd);
 	void gps_cb(const jaguar4x4_2014::GPSInfo::ConstPtr& gpsInfo);
-	void imu_cb(const jaguar4x4_2014::IMUData::ConstPtr& gpsInfo);
+	void imu_cb(const jaguar4x4_2014::IMUData::ConstPtr& imuInfo);
+	
+	void updateData();
 
-	std::string timeConverter(std::chrono::milliseconds timeSinceEpoch)
+	std::string timeConverter(std::chrono::milliseconds timeSinceEpoch);
 	bool pubReady();
 	
 	
@@ -44,10 +46,18 @@ private:
 	ros::Subscriber gpsData;
 	ros::Subscriber imuData;
 	
-	double latitude;
-	double longitude;
-	string curCmnd;
+	double latiData;
+	double longiData;
+	double yawData;
+
+	string curCmnd = "N/A";
+	bool cmndUpdated = false;
 	string curTime;
+
+	int counter = 0;
+	
+	fstream jaguarRecord;
+	fstream commandRecord;
 	
 	jaguar4x4_2014::GPSInfo gpsBuffer;
 	jaguar4x4_2014::IMUData imuBuffer;
@@ -62,11 +72,17 @@ private:
 // ------------------------------------------------------------
 
 void jagCmnd_cb(const std_msgs::String::ConstPtr& cmnd){
-	tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
-	curTime = this.timeConverter(tse);
 	curCmnd = cmnd->data;
-	
-	std::system("source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save");
+	cmndUpdated = true;
+}
+
+void gps_cb(const jaguar4x4_2014::GPSInfo::ConstPtr& gpsInfo){
+	latiData = gpsInfo->latitude;
+	longiData = gpsInfo->longitude;
+}
+
+void imu_cb(const jaguar4x4_2014::IMUData::ConstPtr& imuInfo){
+	yawData = imuInfo->yaw;
 }
 
 bool cmdImgSync::pubReady(){
@@ -94,11 +110,39 @@ std::string cmdImgSync::timeConverter(std::chrono::milliseconds timeSinceEpoch){
 	return timestamp;
 }
 
+void cmdImgSync::updateData(){
+	jaguarRecord.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/jaguarRecord.dat", ios::app);
+	commandRecord.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/commandRecord.dat", ios::app);
+
+	assert(jaguarRecord);
+        assert(commandRecord);
+	
+	tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+	curTime = this.timeConverter(tse);
+
+	if (cmndUpdated){
+		jaguarRecord << curCmnd << ", ";
+		commandRecord << curTime << ", " << counter << "|" << curCmnd << endl;
+		updated = false;
+	} else {
+		jaguarRecord << "No current command, ";
+		commandRecord << curTime << ", " << counter << "|" << "NO_CHANGE" << endl;
+	}
+
+	jaguarRecord << fixed << setprecision(13); // This is set to 13 decimal points of precision, after the decimal point, to keep the GPS data accurate.
+	jaguarRecord << yawData << ", " << latiData << ", " << longiData << ", "; 
+	jaguarRecord << 0 << endl; // This line is simply for the altitude, which the robot does not record, but is required for the GUI program.
+
+	// This takes a photo and saves it to the default saving location. This is still a bit buggy. Working on some fixes at the moment.
+	std::system("source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save");
+	counter++;
+}
+
 // ------------------------------------------------------------
 
 int main(){
 	// Initializing the node.
-	ros::init(argc,argv,"cmdImg_node", ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
+	ros::init(argc, argv, "cmdImg_node", ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
 	
 	cmdImgSync syncer;
 	
@@ -111,9 +155,10 @@ int main(){
 	ros::Rate loopRate(50);
 	
 	while(syncer.pubReady()){
+		cmdImgSync.updateData();
+		
 		// Spinning the node once
 		ros::spinOnce();
-		
 		loopRate.sleep();
 	}
 	
