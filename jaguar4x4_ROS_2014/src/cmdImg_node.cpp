@@ -16,6 +16,12 @@
 #include <sys/stat.h> // This is required to verify the existence of certain files during processing.
 #include <chrono> // This is required for the timestamp on each command/image.
 
+// This all handles image processing. Will remove system() once properly implemented.
+#include <cv_bridge/cv_bridge.h> // https://github.com/ros-perception/vision_opencv.git
+#include <opencv2/imgproc/imgproc.hpp> // https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html
+#include <sensor_msgs/image_encodings.h> // 
+#include <image_transport/image_transport.h> // https://github.com/ros-perception/image_common.git
+
 
 /* READ ME FIRST BEFORE OPERATING NODE
 For the system() methods to operate properly, assuming you're running on 
@@ -106,11 +112,6 @@ void cmdImgSync::imu_cb(const jaguar4x4_2014::IMUData::ConstPtr& imuInfo){
 }
 
 bool cmdImgSync::pubReady(){
-	bool check1 = false
-	bool check2 = false
-	bool check3 = false
-	
-	
 	if (motor_cmd_sub_.getNumPublishers() < 1){
 		return false;
 	} else { return true; }
@@ -159,7 +160,8 @@ void cmdImgSync::updateData(){
 	jaguarRecord << 0 << std::endl; // This line is simply for the altitude, which the robot does not record, but is required for the GUI program.
 
 	// This takes a photo and saves it to the default saving location. This is still a bit buggy. Working on some fixes at the moment.
-	std::system("source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save");
+	// std::system("source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save");
+	// std::system("rosservice call /image_saver/save"); // Going to see if this improves performance over the first system() call above down in main().
 	counter++;
 	
 	jaguarRecord.close();
@@ -171,8 +173,11 @@ void cmdImgSync::updateData(){
 int main(int argc, char** argv){
 	// Initializing the node.
 	ros::init(argc,argv,"cmdImg_node", ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
-	
+
+	// Using threads as a temporary fix to the performance issues until an alternative to std::thread can be found.
 	cmdImgSync syncer;
+	boost::thread t1;
+	boost::thread t2;
 	
 	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && roslaunch axis_camera axis.launch hostname:=192.168.0.65:8081 username:=root password:=drrobot encrypted:=true\"");
 	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosrun image_view image_saver image:=/axis/image_raw _image_transport:=compressed _filename_format:=fubar%04i.jpg _save_all_image:=false __name:=image_saver\"");
@@ -183,11 +188,15 @@ int main(int argc, char** argv){
 	ros::Rate loopRate(50);
 	
 	while(syncer.pubReady()){
-		syncer.updateData();
+		t1 = boost::thread(boost::bind(&cmdImgSync::updateData, &syncer));
+		t2 = boost::thread(std::system("source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save"));
 		
 		// Spinning the node once
 		ros::spinOnce();
 		loopRate.sleep();
+
+		t1.join();
+		t2.join();
 	}
 	
 	return(0); // Confirming successful program execution. 
