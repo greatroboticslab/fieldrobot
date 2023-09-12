@@ -15,11 +15,14 @@
 #include <jaguar4x4_2014/IMUData.h> // This is required to process IMU data.
 #include <sys/stat.h> // This is required to verify the existence of certain files during processing.
 #include <chrono> // This is required for the timestamp on each command/image.
+#include <boost/function.hpp>
+
 
 // This all handles image processing. Will remove system() once properly implemented.
-#include <cv_bridge/cv_bridge.h> // https://github.com/ros-perception/vision_opencv.git
-#include <opencv2/imgproc/imgproc.hpp> // https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html
-#include <sensor_msgs/image_encodings.h> // 
+// cv_bridge and opencv2 need to be installed manually. Working on that now.
+//#include <cv_bridge/cv_bridge.h> // https://github.com/ros-perception/vision_opencv.git
+//#include <opencv2/imgproc/imgproc.hpp> // https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html
+#include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h> // https://github.com/ros-perception/image_common.git
 
 
@@ -178,9 +181,9 @@ int main(int argc, char** argv){
 	cmdImgSync syncer;
 	boost::thread t1;
 	boost::thread t2;
-	
+
 	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && roslaunch axis_camera axis.launch hostname:=192.168.0.65:8081 username:=root password:=drrobot encrypted:=true\"");
-	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosrun image_view image_saver image:=/axis/image_raw _image_transport:=compressed _filename_format:=fubar%04i.jpg _save_all_image:=false __name:=image_saver\"");
+	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosrun image_view image_saver image:=/axis/image_raw _image_transport:=compressed _filename_format:=FRAME%04i.jpg _save_all_image:=false __name:=image_saver\"");
 	
 	// Loop until the jaguar4x4_2014_node node responds
 	while(!syncer.pubReady());
@@ -189,13 +192,14 @@ int main(int argc, char** argv){
 	
 	while(syncer.pubReady()){
 		t1 = boost::thread(boost::bind(&cmdImgSync::updateData, &syncer));
-		t2 = boost::thread(std::system("source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save"));
+		t1.join();
+		
+		t2 = boost::thread(boost::bind(std::system, "source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save"));
 		
 		// Spinning the node once
 		ros::spinOnce();
 		loopRate.sleep();
 
-		t1.join();
 		t2.join();
 	}
 	
