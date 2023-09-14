@@ -38,10 +38,7 @@ Past this line are any notes that are not part of the Dr. Robot development team
 
 (Kevin Kongmanychanh)
 In any terminal intended to run any ROS code, make sure you run this first:
-'source /opt/ros/noetic/setup.bash
-source ~/.bashrc
-cd ~/[Insert name of your catkin workspace here]/
-source devel/setup.bash'
+'source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/[Insert name of your catkin workspace here]/ && source devel/setup.bash'
 To run any node under the Jaguar4x4 robot (any .cpp or .py file under the jaguar4x4_ROS_2014/src directory), assuming that you are already within your catkin workspace, simply input:
 'rosrun jaguar4x4_2014 [put specified node name here without brackets]'
 to any given terminal to run that node.
@@ -55,3 +52,6 @@ There are currently 3 data files directly associated with the Jaguar robot: comm
 2. commands.dat is a record file only for the current movement command. Before each movement command, a number is placed, indicating the order in which the command came in. This is to make it easier to sync up with other types of data, e.g. camera images. The data found in this file may be input into commandRead.dat directly.
 3. commandRead.dat is used to replay particular movement commands to the robot. The commands within this file are directly sent to the jaguar4x4_2014_node through the replay_node (replay_node.cpp) which I created, which publishes to the /rep_cmnd topic. The movement commands within this file may be inputted manually or taken from commands.dat.
 The replay_node (replay_node.cpp file) replays any given movement commands within the commandRead.dat file immediately upon being run. Do NOT run this while the drrobot_keyboard_teleop_node is running (or vice versa), as they will interfere with one another. Keep in mind that, if this node were to be stopped with [ctrl + C], the robot will replay the last given command sent by this node, so you might have to run over to the robot to turn it off manually. Once there are no movement commands left to run within the commandRead.dat file itself, the robot should stop moving, and the replay_node node may be closed using [ctrl + C].
+
+(Kevin Kongmanychanh)
+Check each node and read their comments; they often will tell you information about package and library dependencies that may not be listed here and must be manually downloaded, e.g. OpenCV (specifically opencv2) for the cmdImg_node.
