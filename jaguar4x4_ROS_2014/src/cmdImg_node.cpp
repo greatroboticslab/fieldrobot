@@ -20,8 +20,8 @@
 
 // This all handles image processing. Will remove system() once properly implemented.
 // cv_bridge and opencv2 need to be installed manually. Working on that now.
-//#include <cv_bridge/cv_bridge.h> // https://github.com/ros-perception/vision_opencv.git
-//#include <opencv2/imgproc/imgproc.hpp> // https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html
+#include <cv_bridge/cv_bridge.h> // https://github.com/ros-perception/vision_opencv.git
+#include <opencv2/imgproc/imgproc.hpp> // https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html or https://www.geeksforgeeks.org/how-to-install-opencv-in-c-on-linux/ (MAKE SURE TO UPDATE DIRECTORY IN CMAKELISTS.TXT. WILL SAVE YOU A LOT OF TIME.)
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h> // https://github.com/ros-perception/image_common.git
 
@@ -49,12 +49,15 @@ will be pointing to /bin/bash).
 class cmdImgSync{
 
 public:
-	cmdImgSync(){
+	cmdImgSync() : ih(nh){
+	
 		motor_cmd_sub_ = nh.subscribe<std_msgs::String>("drrobot_motor_cmd", 1, boost::bind(&cmdImgSync::jagCmnd_cb, this, _1));
 		
 		gpsData = nh.subscribe<jaguar4x4_2014::GPSInfo>("drrobot_gps", 1, boost::bind(&cmdImgSync::gps_cb, this, _1));
 		
 		imuData = nh.subscribe<jaguar4x4_2014::IMUData>("drrobot_imu", 1, boost::bind(&cmdImgSync::imu_cb, this, _1));
+		
+		imgData = ih.subscribe("/axis/image_raw/compressed", 1, &cmdImgSync::img_cb, this);
 	}
 	
 	~cmdImgSync(){}
@@ -62,6 +65,7 @@ public:
 	void jagCmnd_cb(const std_msgs::String::ConstPtr& cmnd);
 	void gps_cb(const jaguar4x4_2014::GPSInfo::ConstPtr& gpsInfo);
 	void imu_cb(const jaguar4x4_2014::IMUData::ConstPtr& imuInfo);
+	void img_cb(const sensor_msgs::ImageConstPtr& img);
 	
 	void updateData();
 
@@ -71,9 +75,11 @@ public:
 	
 private:
 	ros::NodeHandle nh;
+	image_transport::ImageTransport ih;;
 	ros::Subscriber motor_cmd_sub_; // Same name as in drrobot_player.cpp for clarity
 	ros::Subscriber gpsData;
 	ros::Subscriber imuData;
+	image_transport::Subscriber imgData;
 	
 	double latiData;
 	double longiData;
@@ -87,9 +93,6 @@ private:
 	
 	std::fstream jaguarRecord;
 	std::fstream commandRecord;
-	
-	jaguar4x4_2014::GPSInfo gpsBuffer;
-	jaguar4x4_2014::IMUData imuBuffer;
 	
 	std::chrono::milliseconds tse;
 	int msEpoch;
@@ -112,6 +115,11 @@ void cmdImgSync::gps_cb(const jaguar4x4_2014::GPSInfo::ConstPtr& gpsInfo){
 
 void cmdImgSync::imu_cb(const jaguar4x4_2014::IMUData::ConstPtr& imuInfo){
 	yawData = imuInfo->yaw;
+}
+
+void img_cb(const sensor_msgs::ImageConstPtr& img){
+	return;
+	//cv_bridge::CvImagePtr 
 }
 
 bool cmdImgSync::pubReady(){
