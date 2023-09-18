@@ -22,6 +22,7 @@
 // cv_bridge and opencv2 need to be installed manually. Working on that now.
 #include <cv_bridge/cv_bridge.h> // https://github.com/ros-perception/vision_opencv.git
 #include <opencv2/imgproc/imgproc.hpp> // https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html or https://www.geeksforgeeks.org/how-to-install-opencv-in-c-on-linux/ (MAKE SURE TO UPDATE DIRECTORY IN CMAKELISTS.TXT. WILL SAVE YOU A LOT OF TIME.)
+#include <opencv2/opencv.hpp>
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h> // https://github.com/ros-perception/image_common.git
 
@@ -57,7 +58,7 @@ public:
 		
 		imuData = nh.subscribe<jaguar4x4_2014::IMUData>("drrobot_imu", 1, boost::bind(&cmdImgSync::imu_cb, this, _1));
 		
-		imgData = ih.subscribe("/axis/image_raw/compressed", 1, &cmdImgSync::img_cb, this);
+		imgData = ih.subscribe("/axis/image_raw", 1, boost::bind(&cmdImgSync::img_cb, this, _1));
 	}
 	
 	~cmdImgSync(){}
@@ -75,7 +76,7 @@ public:
 	
 private:
 	ros::NodeHandle nh;
-	image_transport::ImageTransport ih;;
+	image_transport::ImageTransport ih;
 	ros::Subscriber motor_cmd_sub_; // Same name as in drrobot_player.cpp for clarity
 	ros::Subscriber gpsData;
 	ros::Subscriber imuData;
@@ -99,6 +100,8 @@ private:
 	int secEpoch;
 	int minEpoch;
 	int hrEpoch;
+	
+	bool imgSaved = false;
 };
 
 // ------------------------------------------------------------
@@ -117,21 +120,40 @@ void cmdImgSync::imu_cb(const jaguar4x4_2014::IMUData::ConstPtr& imuInfo){
 	yawData = imuInfo->yaw;
 }
 
-void img_cb(const sensor_msgs::ImageConstPtr& img){
-	return;
-	//cv_bridge::CvImagePtr 
+void cmdImgSync::img_cb(const sensor_msgs::ImageConstPtr& img){
+	std::cout << "Image recieved." << std::endl;
+	tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+	curTime = this->timeConverter(tse);
+	
+	std::string fileDest = "/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/camera_images/" + curTime + ".png";
+	
+	std::cout << "Destination is: "  << fileDest << std::endl;
+		
+	// Converting a sensor_msgs::Image message into a CVImage
+	cv_bridge::CvImagePtr cv_image;
+	
+	cv_image = cv_bridge::toCvCopy(img);
+	
+	cv::imwrite(fileDest, cv_image->image);
+	
+	imgSaved = true;
+	
+	std::cout << "Image saved." << std::endl;
 }
 
 bool cmdImgSync::pubReady(){
 	if (motor_cmd_sub_.getNumPublishers() < 1){
+		std::cout << "/drrobot_motor_cmd not responding.\n";
 		return false;
 	} else { return true; }
 	
 	if (gpsData.getNumPublishers() < 1){
+		std::cout << "/drrobot_gps not responding.\n";
 		return false;
 	} else { return true; }
 	
 	if (imuData.getNumPublishers() < 1){
+		std::cout << "/drrobot_imu not responding.\n";
 		return false;
 	} else { return true; }
 }
@@ -191,10 +213,12 @@ int main(int argc, char** argv){
 	boost::thread t2;
 
 	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && roslaunch axis_camera axis.launch hostname:=192.168.0.65:8081 username:=root password:=drrobot encrypted:=true\"");
-	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosrun image_view image_saver image:=/axis/image_raw _image_transport:=compressed _filename_format:=FRAME%04i.jpg _save_all_image:=false __name:=image_saver\"");
+	//std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosrun image_view image_saver image:=/axis/image_raw _image_transport:=compressed _filename_format:=FRAME%04i.jpg _save_all_image:=false __name:=image_saver\"");
 	
 	// Loop until the jaguar4x4_2014_node node responds
-	while(!syncer.pubReady());
+	while(!syncer.pubReady()){
+		std::cout << "Not ready.\n";
+	}
 	
 	ros::Rate loopRate(50);
 	
@@ -202,13 +226,13 @@ int main(int argc, char** argv){
 		t1 = boost::thread(boost::bind(&cmdImgSync::updateData, &syncer));
 		t1.join();
 		
-		t2 = boost::thread(boost::bind(std::system, "source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save"));
+		//t2 = boost::thread(boost::bind(std::system, "source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save"));
 		
 		// Spinning the node once
 		ros::spinOnce();
 		loopRate.sleep();
 
-		t2.join();
+		//t2.join();
 	}
 	
 	return(0); // Confirming successful program execution. 
