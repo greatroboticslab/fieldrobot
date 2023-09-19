@@ -58,7 +58,7 @@ public:
 		
 		imuData = nh.subscribe<jaguar4x4_2014::IMUData>("drrobot_imu", 1, boost::bind(&cmdImgSync::imu_cb, this, _1));
 		
-		imgData = ih.subscribe("/axis/image_raw", 1, boost::bind(&cmdImgSync::img_cb, this, _1));
+		imgData = ih.subscribe("axis/image_raw", 1, boost::bind(&cmdImgSync::img_cb, this, _1));
 	}
 	
 	~cmdImgSync(){}
@@ -94,14 +94,13 @@ private:
 	
 	std::fstream jaguarRecord;
 	std::fstream commandRecord;
+	std::fstream commandImage;
 	
 	std::chrono::milliseconds tse;
 	int msEpoch;
 	int secEpoch;
 	int minEpoch;
 	int hrEpoch;
-	
-	bool imgSaved = false;
 };
 
 // ------------------------------------------------------------
@@ -121,13 +120,14 @@ void cmdImgSync::imu_cb(const jaguar4x4_2014::IMUData::ConstPtr& imuInfo){
 }
 
 void cmdImgSync::img_cb(const sensor_msgs::ImageConstPtr& img){
-	std::cout << "Image recieved." << std::endl;
+	commandImage.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/commandImage.dat", std::ios::app);
+	
+	assert(commandImage);
+	
 	tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 	curTime = this->timeConverter(tse);
 	
-	std::string fileDest = "/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/camera_images/" + curTime + ".png";
-	
-	std::cout << "Destination is: "  << fileDest << std::endl;
+	std::string fileDest = "/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/camera_images/" + curTime + ".png";
 		
 	// Converting a sensor_msgs::Image message into a CVImage
 	cv_bridge::CvImagePtr cv_image;
@@ -136,26 +136,40 @@ void cmdImgSync::img_cb(const sensor_msgs::ImageConstPtr& img){
 	
 	cv::imwrite(fileDest, cv_image->image);
 	
-	imgSaved = true;
+	commandImage << fileDest << ", " << curCmnd << std::endl;
 	
-	std::cout << "Image saved." << std::endl;
+	commandImage.close();
 }
 
 bool cmdImgSync::pubReady(){
+	bool motorWork = false;
+	bool gpsWork = false;
+	bool imuWork = false;
+	bool imgWork = false;
+	
 	if (motor_cmd_sub_.getNumPublishers() < 1){
-		std::cout << "/drrobot_motor_cmd not responding.\n";
-		return false;
-	} else { return true; }
+		//std::cout << "/drrobot_motor_cmd not responding.\n";
+		//return false;
+	} else { motorWork = true; /* return true;*/ }
 	
 	if (gpsData.getNumPublishers() < 1){
-		std::cout << "/drrobot_gps not responding.\n";
-		return false;
-	} else { return true; }
+		//std::cout << "/drrobot_gps not responding.\n";
+		//return false;
+	} else { gpsWork = true; /* return true;*/ }
 	
 	if (imuData.getNumPublishers() < 1){
-		std::cout << "/drrobot_imu not responding.\n";
-		return false;
-	} else { return true; }
+		//std::cout << "/drrobot_imu not responding.\n";
+		//return false;
+	} else { imuWork = true; /* return true;*/ }
+	
+	if (imgData.getNumPublishers() < 1){
+		//std::cout << "/axis/image_raw not responding.\n";
+		//return false;
+	} else { imgWork = true; /* return true;*/ }
+	
+	if (motorWork && gpsWork && imuWork && imgWork){
+		return true;
+	} else { return false; }
 }
 
 std::string cmdImgSync::timeConverter(std::chrono::milliseconds timeSinceEpoch){	
@@ -213,16 +227,18 @@ int main(int argc, char** argv){
 	boost::thread t2;
 
 	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && roslaunch axis_camera axis.launch hostname:=192.168.0.65:8081 username:=root password:=drrobot encrypted:=true\"");
+	std::system("gnome-terminal -- sh -c \"echo 'Do NOT close this terminal. It republishes the compressed images from /axis/image_raw/compressed to /axis/image_raw and decompresses them in the process.' && rosrun image_transport republish compressed in:=/axis/image_raw raw out:=/axis/image_raw\"");
 	//std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosrun image_view image_saver image:=/axis/image_raw _image_transport:=compressed _filename_format:=FRAME%04i.jpg _save_all_image:=false __name:=image_saver\"");
 	
 	// Loop until the jaguar4x4_2014_node node responds
 	while(!syncer.pubReady()){
-		std::cout << "Not ready.\n";
+		//std::cout << "Not ready.\n";
 	}
 	
 	ros::Rate loopRate(50);
 	
 	while(syncer.pubReady()){
+		//std::cout << "Running...\n";
 		t1 = boost::thread(boost::bind(&cmdImgSync::updateData, &syncer));
 		t1.join();
 		
@@ -234,6 +250,8 @@ int main(int argc, char** argv){
 
 		//t2.join();
 	}
+	
+	std::cout << "Stopped running.\n";
 	
 	return(0); // Confirming successful program execution. 
 }
