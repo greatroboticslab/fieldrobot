@@ -43,6 +43,8 @@ class ReplayNode{
 		   subscribe to (see drrobot_player.cpp). */
 		void replay_file();
 		
+		bool finished();
+		
 	private:
 		/* Declaring the NodeHandle (nh) and the Publisher (pb) 
 		   these two variables are responsible for handling the
@@ -83,6 +85,10 @@ bool ReplayNode::subReady(){
 	} else { return true; }
 }
 
+bool ReplayNode::finished(){
+	return endFile;
+}
+
 /* This function handles all the file reading and processing for the 
    file that contains commands intended to be read to the Jaguar robot. 
    It takes no arguments, but recieves a file as input and publishes 
@@ -91,7 +97,7 @@ void ReplayNode::replay_file(){
 	/* Opening the file. This file can be either a .dat or .txt 
 	file. Please note the direct directory path; this is required 
 	by ROS, as if not, it will write it in a hidden ROS 
-	directory. Thsi path should be set to the path that is on 
+	directory. This path should be set to the path that is on 
 	my computer; change this directory to the path in which you 
 	need it to read from.
 	This is set to read mode as to not alter the data.
@@ -153,7 +159,7 @@ int main(int argc, char** argv){
 	
 	ros::Rate loopRate(50);
 	
-	while(replayer.subReady()){
+	while(replayer.subReady() && !replayer.finished()){
 		/* Initializing a thread object (rep_thread), then calling 
 		   the replay_file() function on the replayer object 
 		   through it. */
