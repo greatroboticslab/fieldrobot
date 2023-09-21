@@ -3,23 +3,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/poll.h>
-#include <sstream>
-#include <boost/thread/thread.hpp>
-#include <ros/ros.h>
-#include <std_msgs/String.h>
+#include <sstream> // Required for processing stringstream
+#include <boost/thread/thread.hpp> // Required for multithreading
+#include <ros/ros.h> // Required for ros
+#include <std_msgs/String.h> // Required for ros
 #include <fstream> // Required for file processing.
 #include <cassert> // Required to check if file exists.
-#include <iostream>
+#include <iostream> // Required for standard in and out
 #include <stdlib.h> // This is required for the system() call.
 #include <jaguar4x4_2014/GPSInfo.h> // This is required to process GPS data.
 #include <jaguar4x4_2014/IMUData.h> // This is required to process IMU data.
-#include <sys/stat.h> // This is required to verify the existence of certain files during processing.
 #include <chrono> // This is required for the timestamp on each command/image.
-#include <boost/function.hpp>
 
 
-// This all handles image processing. Will remove system() once properly implemented.
-// cv_bridge and opencv2 need to be installed manually. Working on that now.
+// This all handles image processing.
+// cv_bridge and opencv2 need to be installed manually
 #include <cv_bridge/cv_bridge.h> // https://github.com/ros-perception/vision_opencv.git
 #include <opencv2/imgproc/imgproc.hpp> // https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html or https://www.geeksforgeeks.org/how-to-install-opencv-in-c-on-linux/ (MAKE SURE TO UPDATE DIRECTORY IN CMAKELISTS.TXT. WILL SAVE YOU A LOT OF TIME.)
 #include <opencv2/opencv.hpp>
@@ -29,8 +27,8 @@
 
 /* READ ME FIRST BEFORE OPERATING NODE
 For the system() methods to operate properly, assuming you're running on 
-Ubuntu 20.04 (which you should be for ROS1 Noetic to work properly), you need to reconfigure your shell, which is currently configured to 
-/bin/dash, to /bin/bash, as you will otherwise get a message such as this: 
+Ubuntu 20.04 (which you should be for ROS1 Noetic to work properly), you need to reconfigure your shell - which is currently configured to 
+/bin/dash - to /bin/bash, as you will otherwise get a message such as this: 
 
 "sh: 1: source: not found"
 
@@ -45,6 +43,13 @@ Enter in your password as normal.
 This will then ask whether you want dash to be your default system shell; 
 select "No", and then bash will be configured as your shell (or, /bin/sh
 will be pointing to /bin/bash).
+
+
+Keep in mind that the jaguarRecord.dat, commandImage.dat, and 
+commandRead.dat files should be emptied before running, unless you want 
+older data mixed in with the new data. The counter should make it easier 
+to distinguish when one record ends and when another begins, when 
+applicable.
 */
 
 class cmdImgSync{
@@ -136,40 +141,41 @@ void cmdImgSync::img_cb(const sensor_msgs::ImageConstPtr& img){
 	
 	cv::imwrite(fileDest, cv_image->image);
 	
-	commandImage << fileDest << ", " << curCmnd << std::endl;
+	commandImage << std::setfill(' ') << std::left;
+	
+	/* Use this one below instead of the if-else statement if you
+	are planning to use the commandImage.dat file for the 
+	replay_node; keep in mind that this will be slightly less 
+	accurate, as it is recording at 30 Hz (due to the 30 FPS 
+	camera). Using the if-else statement for the replay may result 
+	in missing motor commands. */
+	// commandImage << std::setw(18) << curTime + ".png" << counter << "|" << curCmnd << std::endl;
+	
+	if (cmndUpdated){
+		commandImage << std::setw(18) << fileDest << counter << "|" << curCmnd << std::endl;
+	} else {
+		commandImage << std::setw(18) << fileDest << counter << "|" << "NO_CHANGE" << std::endl;
+	}
 	
 	commandImage.close();
 }
 
 bool cmdImgSync::pubReady(){
-	bool motorWork = false;
-	bool gpsWork = false;
-	bool imuWork = false;
-	bool imgWork = false;
-	
 	if (motor_cmd_sub_.getNumPublishers() < 1){
-		//std::cout << "/drrobot_motor_cmd not responding.\n";
-		//return false;
-	} else { motorWork = true; /* return true;*/ }
+		return false;
+	} else { return true; }
 	
 	if (gpsData.getNumPublishers() < 1){
-		//std::cout << "/drrobot_gps not responding.\n";
-		//return false;
-	} else { gpsWork = true; /* return true;*/ }
+		return false;
+	} else { return true; }
 	
 	if (imuData.getNumPublishers() < 1){
-		//std::cout << "/drrobot_imu not responding.\n";
-		//return false;
-	} else { imuWork = true; /* return true;*/ }
+		return false;
+	} else { return true; }
 	
 	if (imgData.getNumPublishers() < 1){
-		//std::cout << "/axis/image_raw not responding.\n";
-		//return false;
-	} else { imgWork = true; /* return true;*/ }
-	
-	if (motorWork && gpsWork && imuWork && imgWork){
-		return true;
-	} else { return false; }
+		return false;
+	} else { return true; }
 }
 
 std::string cmdImgSync::timeConverter(std::chrono::milliseconds timeSinceEpoch){	
@@ -184,7 +190,7 @@ std::string cmdImgSync::timeConverter(std::chrono::milliseconds timeSinceEpoch){
 }
 
 void cmdImgSync::updateData(){
-	jaguarRecord.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/jaguarRecordCopy.dat", std::ios::app);
+	jaguarRecord.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/jaguarRecord.dat", std::ios::app);
 	commandRecord.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/commandRecord.dat", std::ios::app);
 
 	assert(jaguarRecord);
@@ -193,22 +199,21 @@ void cmdImgSync::updateData(){
 	tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 	curTime = this->timeConverter(tse);
 
+	commandRecord << std::setfill(' ') << std::left;
+
 	if (cmndUpdated){
 		jaguarRecord << curCmnd << ", ";
-		commandRecord << curTime << ", " << counter << "|" << curCmnd << std::endl;
+		commandRecord << std::setw(18) << curTime << counter << "|" << curCmnd << std::endl;
 		cmndUpdated = false;
 	} else {
 		jaguarRecord << "No current command, ";
-		commandRecord << curTime << ", " << counter << "|" << "NO_CHANGE" << std::endl;
+		commandRecord << std::setw(18) << curTime << counter << "|" << "NO_CHANGE" << std::endl;
 	}
 
 	jaguarRecord << std::fixed << std::setprecision(13); // This is set to 13 decimal points of precision, after the decimal point, to keep the GPS data accurate.
 	jaguarRecord << yawData << ", " << latiData << ", " << longiData << ", "; 
 	jaguarRecord << 0 << std::endl; // This line is simply for the altitude, which the robot does not record, but is required for the GUI program.
 
-	// This takes a photo and saves it to the default saving location. This is still a bit buggy. Working on some fixes at the moment.
-	// std::system("source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save");
-	// std::system("rosservice call /image_saver/save"); // Going to see if this improves performance over the first system() call above down in main().
 	counter++;
 	
 	jaguarRecord.close();
@@ -221,37 +226,34 @@ int main(int argc, char** argv){
 	// Initializing the node.
 	ros::init(argc,argv,"cmdImg_node", ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
 
-	// Using threads as a temporary fix to the performance issues until an alternative to std::thread can be found.
-	cmdImgSync syncer;
-	boost::thread t1;
-	boost::thread t2;
-
+	cmdImgSync syncer; // Declaring cmdImgSync object for processing
+	boost::thread t1; // Declaring boost thread for multithreading
+	
+	/* Making two system calls; one to access the camera of the 
+	Jaguar robot, the other to republish the compressed images of 
+	the camera to another topic to make them accessible. Also 
+	decompresses them for processing. */
 	std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && roslaunch axis_camera axis.launch hostname:=192.168.0.65:8081 username:=root password:=drrobot encrypted:=true\"");
 	std::system("gnome-terminal -- sh -c \"echo 'Do NOT close this terminal. It republishes the compressed images from /axis/image_raw/compressed to /axis/image_raw and decompresses them in the process.' && rosrun image_transport republish compressed in:=/axis/image_raw raw out:=/axis/image_raw\"");
-	//std::system("gnome-terminal -- sh -c \"source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosrun image_view image_saver image:=/axis/image_raw _image_transport:=compressed _filename_format:=FRAME%04i.jpg _save_all_image:=false __name:=image_saver\"");
 	
-	// Loop until the jaguar4x4_2014_node node responds
-	while(!syncer.pubReady()){
-		//std::cout << "Not ready.\n";
-	}
+	while(!syncer.pubReady()); // Loop until the jaguar4x4_2014_node node responds
 	
-	ros::Rate loopRate(50);
+	ros::Rate loopRate(50); /* Setting the ROS rate to 50 Hz like 
+	main/drrobot_player node. */
 	
+	/* While the publishers for every subscribed topic are still 
+	active, or until the user [CTRL + C]'s... */
 	while(syncer.pubReady()){
-		//std::cout << "Running...\n";
-		t1 = boost::thread(boost::bind(&cmdImgSync::updateData, &syncer));
-		t1.join();
-		
-		//t2 = boost::thread(boost::bind(std::system, "source /opt/ros/noetic/setup.bash && source ~/.bashrc && cd ~/catkin_rbt_ws/ && source devel/setup.bash && rosservice call /image_saver/save"));
+		t1 = boost::thread(boost::bind(&cmdImgSync::updateData, &syncer)); // Initialize thread for updateData call on syncer object.
+		t1.join(); // Wait until the thread is finished
+
 		
 		// Spinning the node once
 		ros::spinOnce();
 		loopRate.sleep();
-
-		//t2.join();
 	}
 	
-	std::cout << "Stopped running.\n";
+	std::cout << "Stopped running.\n"; // Once stopped, declare to user that it has stopped running.
 	
 	return(0); // Confirming successful program execution. 
 }
