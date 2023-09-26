@@ -23,6 +23,9 @@ is used specifically to convert between ROS and OpenCV images. */
 #include <sensor_msgs/image_encodings.h> // Required for ROS standard message handling and processing.
 #include <image_transport/image_transport.h> // https://github.com/ros-perception/image_common.git
 
+/* There is no namespace being used here. Please refrain from doing, 
+"using namespace [your_namepspace_here];", as it makes the code much 
+harder to maintain in the future. */
 
 /* READ ME FIRST BEFORE OPERATING NODE
 For the system() methods to operate properly, assuming you're running on 
@@ -53,7 +56,14 @@ to distinguish when one record ends and when another begins in the same,
 file, when applicable.
 */
 
-/* Defining cmdImgSync class. This will be used to perform all data 
+/* If you have any questions regarding this node, please email Kevin 
+Kongmanychanh at kck3m@mtmail.mtsu.edu. */
+
+
+// -----------------------------------------------------------------------
+
+
+/* The cmdImgSynce class is responsible for performing all data 
 handling and processing. */
 class cmdImgSync{
 
@@ -158,7 +168,9 @@ private:
 	int hrEpoch; /* The current hour from the tse. */
 };
 
-// ------------------------------------------------------------
+
+// -----------------------------------------------------------------------
+
 
 /* (CALLBACK) This function updates curCmnd and cmndUpdated whenever 
 a new Jaguar command is recieved. */
@@ -205,14 +217,19 @@ void cmdImgSync::img_cb(const sensor_msgs::ImageConstPtr& img){
 	the image file. */
 	std::string fileDest = "/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/camera_images/" + curTime + ".png";
 		
-	cv_bridge::CvImagePtr cv_image; /* Converting a 
-	sensor_msgs::Image message into a CVImage */
+	cv_bridge::CvImagePtr cv_image; /* Creating a CVImagePtr to 
+	hold the sensor_msgs::Image message when it is converted into 
+	an OpenCV image. */
 	
-	cv_image = cv_bridge::toCvCopy(img);
+	cv_image = cv_bridge::toCvCopy(img);/* Converting a 
+	sensor_msgs::Image message into an OpenCV image. */
 	
-	cv::imwrite(fileDest, cv_image->image);
+	cv::imwrite(fileDest, cv_image->image); /* Saving the image to 
+	the file destination specified in fileDest. */
 	
-	commandImage << std::setfill(' ') << std::left;
+	commandImage << std::setfill(' ') << std::left; /* Setting 
+	the format specifiers in the file to be lefmost bound and to 
+	have padding set to be whitespace (spaces). */
 	
 	/* Use this one below instead of the if-else statement if you
 	are planning to use the commandImage.dat file for the 
@@ -222,83 +239,150 @@ void cmdImgSync::img_cb(const sensor_msgs::ImageConstPtr& img){
 	in missing motor commands. */
 	// commandImage << std::setw(100) << curTime + ".png" << counter << "|" << curCmnd << std::endl;
 	
-	if (cmndUpdated){
+	/* If there is a new command whenever a new image is recieved 
+	by the Jaguar's camera, save the file destination to 
+	commandImage.dat with the current counter along with the 
+	current command, with the right of the file destination padded 
+	to a maximum of 100 spaces from the start of the line.  */
+	if (cmndUpdated){ 
 		commandImage << std::setw(100) << fileDest << counter << "|" << curCmnd << std::endl;
+		
+	/* If not, replace the current command/curCmnd with NO_CHANGE 
+	to indicate that no new command came in when the image was 
+	saved. */
 	} else {
 		commandImage << std::setw(100) << fileDest << counter << "|" << "NO_CHANGE" << std::endl;
 	}
 	
-	commandImage.close();
+	commandImage.close(); // Closing commandImage.dat.
 }
 
+/* This function ensures that all of the publishers that the 
+cmdImg_node is subscribed to are ready by the time that the cmdImg_node 
+begins its normal routines, returning false if any of the publishers 
+are not ready and true if they are all ready. */
 bool cmdImgSync::pubReady(){
+	/* Checking if the drrobot_motor_cmd topic is ready with its 
+	publisher. */
 	if (motor_cmd_sub_.getNumPublishers() < 1){
 		return false;
-	} else { return true; }
+	}
 	
+	/* Checking if the drrobot_gps topic is ready with its 
+	publisher. */
 	if (gpsData.getNumPublishers() < 1){
 		return false;
-	} else { return true; }
+	}
 	
+	/* Checking if the drrobot_imu topic is ready with its 
+	publisher. */
 	if (imuData.getNumPublishers() < 1){
 		return false;
-	} else { return true; }
+	}
 	
+	/* Checking if the axis/image_raw topic is ready with its 
+	publisher. */
 	if (imgData.getNumPublishers() < 1){
 		return false;
-	} else { return true; }
+	}
+	
+	return true; // Returning true if all topic publishers are ready.
 }
 
+/* This function converts the current time since epoch to a timestamp 
+with the format of HOUR:MIN:SECOND:MILLISECOND, returning that 
+timestamp as a string. This takes the current time since epoch in 
+milliseconds as input. */
 std::string cmdImgSync::timeConverter(std::chrono::milliseconds timeSinceEpoch){	
+	/* Calculating the current timestamp given the time since 
+	epoch, with each unit of time calculated separately. */
     	int msEpoch = timeSinceEpoch.count() % 1000;
     	int secEpoch = (timeSinceEpoch.count() / 1000) % 60;
     	int minEpoch = (timeSinceEpoch.count() / 60000 ) % 60;
     	int hrEpoch = (timeSinceEpoch.count() / 86400000) % 24;
     	
+    	/* Concatenating all of the units of time together to form the 
+    	timestamp. */
     	std::string timestamp = std::to_string(hrEpoch) + ":" + std::to_string(minEpoch) + ":" + std::to_string(secEpoch) + ":" + std::to_string(msEpoch);
     	
-	return timestamp;
+	return timestamp; // Returning the timestamp.
 }
 
+/* This function updates the jaguarRecord.dat file and the 
+commandRecord.dat file every time before the callback functions are 
+called through ros::spinOnce, along with updating any associated 
+variables related to this process. */
 void cmdImgSync::updateData(){
+	/* Opening jaguarRecord.dat and commandRecord.dat to append 
+	new data. */
 	jaguarRecord.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/jaguarRecord.dat", std::ios::app);
 	commandRecord.open("/home/jackal/catkin_rbt_ws/src/jaguar4x4_ROS_2014/src/commandRecord.dat", std::ios::app);
-
+	
+	/* Asserting jaguarRecord and commandRecord to ensure that both 
+	files exist. */
 	assert(jaguarRecord);
 	assert(commandRecord);
 	
+	/* Setting tse to the current time since epoch, then passing 
+	tse through timeConverter to convert it to a timestamp; 
+	storing the timestamp in curTime. */
 	tse = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 	curTime = this->timeConverter(tse);
 
-	commandRecord << std::setfill(' ') << std::left;
+	commandRecord << std::setfill(' ') << std::left; /* Setting 
+	the format specifiers in commandRecord.dat to be lefmost bound 
+	and to have padding set to be whitespace (spaces). */
 
+	/* If there is a new command, save that command to 
+	jaguarRecord.dat, adding a comma and space after it. To 
+	commandRecord.dat, first save curTime to the file, with the 
+	right of curTime padded with a maximum of 18 spaces from the 
+	start of the line, then save the current counter alongside 
+	the current command. Update cmndUpdated to false.*/
 	if (cmndUpdated){
 		jaguarRecord << curCmnd << ", ";
 		commandRecord << std::setw(18) << curTime << counter << "|" << curCmnd << std::endl;
 		cmndUpdated = false;
+		
+	/* If not, state in jaguarRecord that there is no new command. 
+	In commandRecord, do the same as if there was a new command, 
+	but set where curCmnd typically is to NO_CHANGE. */
 	} else {
 		jaguarRecord << "No current command, ";
 		commandRecord << std::setw(18) << curTime << counter << "|" << "NO_CHANGE" << std::endl;
 	}
-
-	jaguarRecord << std::fixed << std::setprecision(13); // This is set to 13 decimal points of precision, after the decimal point, to keep the GPS data accurate.
-	jaguarRecord << yawData << ", " << latiData << ", " << longiData << ", "; 
-	jaguarRecord << 0 << std::endl; // This line is simply for the altitude, which the robot does not record, but is required for the GUI program.
-
-	counter++;
 	
+	/* Setting the format specifiers of jaguarRecord to have a 
+	fixed precision, set to 13 decimal points. This is to keep the 
+	GPS and IMU data accurate. */
+	jaguarRecord << std::fixed << std::setprecision(13);
+	
+	/* Recording the yaw data, the latidute data, and the longitude 
+	data to the jaguarRecord.dat file afte the current listed 
+	command, separated by a space and a comma for each entry. */
+	jaguarRecord << yawData << ", " << latiData << ", " << longiData << ", ";
+	
+	jaguarRecord << 0 << std::endl; /* This line is simply for the 
+	altitude, which the robot does not record, but is required 
+	for the GUI program. */
+
+	counter++; // Updating counter.
+	
+	// Closing jaguarRecord.dat and commandRecord.dat.
 	jaguarRecord.close();
 	commandRecord.close();
 }
 
-// ------------------------------------------------------------
+
+// -----------------------------------------------------------------------
+
 
 int main(int argc, char** argv){
 	// Initializing the node.
 	ros::init(argc,argv,"cmdImg_node", ros::init_options::AnonymousName | ros::init_options::NoSigintHandler);
 
-	cmdImgSync syncer; // Declaring cmdImgSync object for processing
-	boost::thread t1; // Declaring boost thread for multithreading
+	cmdImgSync syncer; // Declaring cmdImgSync object for processing.
+	boost::thread t1; // Declaring boost thread for multithreading.
 	
 	/* Making two system calls; one to access the camera of the 
 	Jaguar robot, the other to republish the compressed images of 
@@ -309,17 +393,18 @@ int main(int argc, char** argv){
 	
 	while(!syncer.pubReady()); // Loop until the jaguar4x4_2014_node node responds
 	
-	ros::Rate loopRate(50); /* Setting the ROS rate to 50 Hz like 
-	main/drrobot_player node. */
+	ros::Rate loopRate(50); /* Setting the ROS rate to 50 Hz like in 
+	the main/drrobot_player node. */
 	
 	/* While the publishers for every subscribed topic are still 
 	active, or until the user [CTRL + C]'s... */
 	while(syncer.pubReady()){
-		t1 = boost::thread(boost::bind(&cmdImgSync::updateData, &syncer)); // Initialize thread for updateData call on syncer object.
-		t1.join(); // Wait until the thread is finished
+		// Initialize thread for updateData call on syncer object.
+		t1 = boost::thread(boost::bind(&cmdImgSync::updateData, &syncer));
+		t1.join(); // Wait until the thread is finished.
 
 		
-		// Spinning the node once
+		// Spinning the node once.
 		ros::spinOnce();
 		loopRate.sleep();
 	}
