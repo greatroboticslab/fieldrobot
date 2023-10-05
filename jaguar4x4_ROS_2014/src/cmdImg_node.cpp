@@ -221,7 +221,7 @@ void cmdImgSync::img_cb(const sensor_msgs::ImageConstPtr& img){
 	hold the sensor_msgs::Image message when it is converted into 
 	an OpenCV image. */
 	
-	cv_image = cv_bridge::toCvCopy(img);/* Converting a 
+	cv_image = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);/* Converting a 
 	sensor_msgs::Image message into an OpenCV image. */
 	
 	cv::imwrite(fileDest, cv_image->image); /* Saving the image to 
