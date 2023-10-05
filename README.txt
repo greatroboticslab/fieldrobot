@@ -67,14 +67,13 @@ on how to install that specific dependency/dependencies.
 
 ----------------------------------------------------------------------------------------------------
 
-Please refer here for dependencies:
+*** PLEASE REFER HERE FOR DEPENDENCIES ***
 
 The Jaguar (jaguar4x4_ROS_2014) is able to operate standalone, assuming that you are not attempting 
 to collect data through the cmdImg_node. If you are attempting to do so, there are 8 dependencies 
-that are required to be installed. One of these must be installed manually if it is not already 
-installed on your desktop/laptop (OpenCV), and is not listed directly on the repository. 
-Please refer to the comments in the cmdImg_node or read below; it will give you information on 
-how to install OpenCV.
+that are required to be installed. Two of these must be installed manually if they aren't already 
+installed on your desktop/laptop (i.e. OpenCV, libturbojpeg), and aren't listed directly on the 
+repository. Please refer below for more information on how to install OpenCV and libturbojpeg.
 
 To operate the Jaguar's camera for image processing and general access through ROS, the 
 Jaguar relies on these dependencies to operate:
@@ -90,6 +89,7 @@ https://www.geeksforgeeks.org/how-to-install-opencv-in-c-on-linux/
 The axis_camera-master package relies on these dependencies to operate:
 1. camera_info_manager_py
 2. image_pipeline-noetic
+3. image_transport_plugins-noetic-devel
 
 The image_pipeline-noetic package relies on these dependencies to operate:
 1. common_msgs-noetic-devel (specifically sensor_msgs)
@@ -97,7 +97,69 @@ The image_pipeline-noetic package relies on these dependencies to operate:
 3. nodelet_core-noetic-devel
 3. vision_opencv-noetic (cv_bridge)
 
+The image_transport_plugins-noetic-devel package relies on libturbojpeg to operate, which must 
+be installed manually. To install libturbojpeg, open up a new gnome-terminal and run the 
+following command:
+sudo apt install libturbojpeg0-dev
+Alternatively, you may install from source through the following link, though this is more 
+difficult:
+https://github.com/libjpeg-turbo/libjpeg-turbo
+
 If you experience any errors related to missing packages, please contact:
 kck3m@mtmail.mtsu.edu for any inquiries.
 
 ----------------------------------------------------------------------------------------------------
+
+*** HOW TO POWER ON/OFF THE JAGUAR ROBOT AND CONNECT TO IT ***
+
+!!! WHEN HANDLING THE BATTERY AND/OR WORKING WITH ANY INTERNAL PARTS OF THE JAGUAR, ENSURE THAT THE ROBOT IS POWERED OFF. READ BELOW FOR MORE INFORMATION. !!!
+!!! ENSURE YOU ALWAYS TURN OFF THE ROBOT AND REMOVE AND DISCONNECT THE BATTERY WHEN DONE OPERATING IT !!!
+
+
+To turn the Jaguar robot on:
+
+1. Ensure that the battery is plugged in properly. The battery fits into a slot on the
+top of the robot, towards the back (in front of the tow hitch). This battery should have 
+two main wire cords running in/out of it; one should be a white, 7 pin Tamiya (female) 
+connector, while the other should be a yellow, Amass XT90 (female) connector. For the 
+Jaguar to operate, the Amass connector should be connected to its male counterpart, 
+located somewhere inside of the slot. It should also be yellow. Connect these two Amass
+connectors together, then insert the battery inside of the slot. This may not fit 
+properly at first, so you may have to fiddle around with the wire positions a bit and/or 
+wiggle the battery in/out of place.
+
+2. Navigate to the back plate of the Jaguar robot (where the tow hitch is located). 
+
+3. Locate the labeled OFF and ON switch, located in the upper right corner of the Jaguar's back 
+panel, and the labeled START button, located directly below the OFF and ON switch.
+
+4. Switch the switch to ON (white line on switch is pointing towards ON). Then, press the START 
+button for around half a second to a second, then release. This will power on the robot.
+
+
+To turn the Jaguar robot off:
+
+1. Switch the OFF and ON switch to OFF (white line on switch is pointing towards OFF).
+
+2. Remove the battery from the battery slot, then disconnect the male and female Amass XT90 
+connectors.
+
+
+To connect to the Jaguar robot:
+
+1. Assuming you have just turned on the robot, wait for the Jaguar to completely start up. 
+In the meantime, open up the Settings on your system and navigate to Wi-Fi. When the Jaguar 
+is ready, under your Visible Networks, you will see DriJaguar.
+
+(IGNORE STEPS 2-5 IF YOU ARE ON THE LAB'S UBUNTU DESKTOP OR HAVE ALREADY CONFIGURED THE NETWORK SETTINGS)
+
+2. Tap on the Settings/cog icon to the right of the DriJaguar tab and navigate to the IPv4 
+settings. Set the IPv4 Method to Manual.
+
+3. Configure the Address (under Addresses) to 192.168.0.104, and the Netmask to 255.255.255.0
+
+4. Configure the DNS (under DNS) to 192.168.0.104
+
+5. Click apply in the upper right hand corner of the tab window.
+
+6. Click on DriJaguar and connect to it (assuming it has not done this already).
