@@ -163,3 +163,50 @@ settings. Set the IPv4 Method to Manual.
 5. Click apply in the upper right hand corner of the tab window.
 
 6. Click on DriJaguar and connect to it (assuming it has not done this already).
+
+----------------------------------------------------------------------------------------------------
+
+*** HOW TO CHARGE THE JAGUAR'S BATTERY ***
+
+!!! WHEN HANDLING THE BATTERY AND/OR WORKING WITH ANY INTERNAL PARTS OF THE JAGUAR, ENSURE THAT THE ROBOT IS POWERED OFF. !!!
+!!! WHEN CHARGING THE BATTERY OF THE JAGUAR, ALWAYS KEEP IT WITHIN DIRECT OBSERVATION, NEVER LEAVE THE BATTERY UNATTENDED, AND NEVER LEAVE THE ROOM WHILE IT IS CHARGING UNLESS DIRECTED BY DR. HONGBO ZHANG. ALWAYS REMEMBER TO DISCONNECT THE BATTERY FROM THE CHARGER ONCE FINISHED OR WHEN LEAVING. FAILURE TO HEED THESE INSTRUCTIONS/WARNINGS WILL RESULT IN A FIRE AND/OR HARM TO SELF AND/OR OTHERS. !!!
+
+
+To charge the Jaguar robot's battery:
+
+1. Turn the Jaguar off.
+
+2. Remove the battery from the battery slot within the Jaguar and disconnect the yellow Amass XT90 
+connectors from one another.
+
+3. Retrieve the AC/DC power adapter (MODEL: LJH074-120100WI, INPUT: 100-240V~50/60Hz, 
+OUTPUT: 12V⎓10A) and the TENERGY TB6B Multifunctional Balance Charger (DC INPUT 11-18V).
+
+4. Connect the adapter to the TENERGY charger through the small, round port on the left side of the 
+charger (directly to the left of the red TENERGY logo on the left side of the charger).
+
+5. Connect the battery's Amass XT90 (female) connector to the TENERGY charger's Amass XT90 (male) 
+connector.
+
+6. Connect the battery's 7 pin Tamiya (female) connector to the TENERGY charger's 7 pin Tamiya 
+(male) connector.
+
+4. Connect the adapter plug to the wall outlet/socket. This will power on the TENERGY charger. 
+The charger will beep, and then the screen should display:
+LiIo CHARGE
+3.0A   21.6V(6S)
+If this does not display, or the settings are incorrect, please contact Dr. Hongbo Zhang.
+
+5. Hold down the rightmost button (ENTER/START). This will perform a battery check. Tap the button 
+again to confirm. The battery should now be charging.
+
+
+To stop charging the battery:
+
+1. Disconnect the adapter plug from the wall outlet. DO THIS FIRST.
+
+2. Disconnect the adapter from the TENERGY charger.
+
+3. Disconnect the connectors from the battery.
+
+----------------------------------------------------------------------------------------------------
