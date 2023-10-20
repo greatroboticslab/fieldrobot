@@ -78,6 +78,7 @@ include_directories(include
  add_executable(drrobot_keyboard_teleop_node src/drrobot_keyboard_teleop.cpp)
  add_executable(replay_node src/replay_node.cpp)
  add_executable(cmdImg_node src/cmdImg_node.cpp)
+ add_executable(jaguar_gps src/jaguar_gps.cpp)
 # Add cmake target dependencies of the executable/library
 # as an example, message headers may need to be generated before nodes
 # add_dependencies(jaguar4x4_2014_node jaguar4x4_2014_generate_messages_cpp)
@@ -92,7 +93,10 @@ include_directories(include
  target_link_libraries(replay_node
    ${catkin_LIBRARIES}
  )
-  target_link_libraries(cmdImg_node
+ target_link_libraries(cmdImg_node
+   ${catkin_LIBRARIES}
+ )
+ target_link_libraries(jaguar_gps
    ${catkin_LIBRARIES}
  )
 #############
