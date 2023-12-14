@@ -110,6 +110,7 @@ public:
     ros::Publisher imu_pub_;
     ros::Subscriber rep_cmnd;
     ros::Subscriber motor_cmd_sub_;	
+    ros::Subscriber jaguar_gps;
     std::string robot_prefix_;
 
     DrRobotPlayerNode()
@@ -232,6 +233,7 @@ public:
 
       rep_cmnd = node_.subscribe<std_msgs::String>("rep_cmnd", 1, boost::bind(&DrRobotPlayerNode::cmdReceived, this, _1));
       motor_cmd_sub_ = node_.subscribe<std_msgs::String>("drrobot_motor_cmd", 1, boost::bind(&DrRobotPlayerNode::cmdReceived, this, _1));
+      jaguar_gps = node_.subscribe<std_msgs::String>("jaguar_gps", 1, boost::bind(&DrRobotPlayerNode::cmdReceived, this, _1));
         return(0);
     }
 
